@@ -1,0 +1,13 @@
+- name: httpd
+  pod: httpd-deployment
+  namespace: httpd
+  ports:
+    src: 8080
+    dst: 80
+- name: forward
+  pod: httpd-forward
+  namespace: tunnels
+  ports:
+    src: 8081
+    dst: 80
+
