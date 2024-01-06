@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	"github.com/tsemach/go-k8s-portforward/portforward"
@@ -47,14 +48,20 @@ func mainOld() {
 	time.Sleep(600 * time.Second)
 }
 
-func handleService(name string) {
+func waitForEver() {
+	for true {
+		time.Sleep(60 * time.Second)
+	}
+}
+
+func handleService(service *PFItem) {
 	var context = context.Background()
 
-	service, err := getPFItem(name)
-	if err != nil {
-		log.Fatal("unable to find name in config file")
-		return
-	}
+	// service, err := getPFItem(name)
+	// if err != nil {
+	// 	log.Fatal("unable to find name in config file")
+	// 	return
+	// }
 
 	pf, err := portforward.NewPortForwarder(service.Namespace, service.Pod, int(service.Ports.Dst), int(service.Ports.Src))
 	if err != nil {
@@ -72,20 +79,38 @@ func handleService(name string) {
 	// 	fmt.Printf("ffor loop")
 	// }
 
-	time.Sleep(600 * time.Second)
-
 }
 
 func main() {
 	var args = parse()
+
+	if args.help {
+		help()
+		os.Exit(0)
+	}
+
 	loadConfig(args.getFile())
 
 	fmt.Println("name:", args.name)
 	fmt.Println("file:", args.getFile())
 
 	if args.isName() {
-		handleService(args.name)
+		var service, err = getPFItem(args.name)
+
+		if err != nil {
+			log.Fatal("unable to find name in config file")
+			return
+		}
+
+		handleService(&service)
+		waitForEver()
 
 		return
 	}
+
+	for i := 0; i < len(cfg); i++ {
+		handleService(&cfg[i])
+	}
+
+	waitForEver()
 }

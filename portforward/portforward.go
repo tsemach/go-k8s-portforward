@@ -242,8 +242,8 @@ func (p *PortForward) findPodByPrefix(ctx context.Context) (string, error) {
 	}
 
 	for i := 0; i < len(pods.Items); i++ {
-		fmt.Printf("name: %s pod %s", pods.Items[i].ObjectMeta.Name, p.Pod)
-		
+		fmt.Printf("name: %s fond pod: %s ", p.Pod, pods.Items[i].ObjectMeta.Name)
+
 		if strings.HasPrefix(pods.Items[i].ObjectMeta.Name, p.Pod) {
 			return pods.Items[i].ObjectMeta.Name, nil
 		}
