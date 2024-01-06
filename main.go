@@ -2,15 +2,22 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"time"
 
-	// "github.com/justinbarrick/go-k8s-portforward"
-	"github.com/justinbarrick/go-k8s-portforward/portforward"
+	"github.com/tsemach/go-k8s-portforward/portforward"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 /**
+config file search:
+	1. using -f in the command line
+	2. using $PORT_FORWARD_CONFIGFILE environment variable
+	3. using pf.yaml | pf.yml in the local directory
+	4. using pf.yaml | pf.yml in ~/.config/port-forward
+
 pf => port forward all found in default config file
 pf -f file.yaml => port forward all found in specfic config file
 pf -n <service-name> => port forward specific name found in default config file
@@ -37,4 +44,15 @@ func main() {
 
 	log.Printf("Started tunnel on %d\n", pf.ListenPort)
 	time.Sleep(600 * time.Second)
+}
+
+func maincli() {
+	var args = parse()
+
+	fmt.Println("name:", args.name)
+	fmt.Println("file:", args.getFile())
+
+	if args.isName() {
+
+	}
 }
