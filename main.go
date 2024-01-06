@@ -27,7 +27,7 @@ pf -f file.yaml -n <service-name> => port forward specific name found in specfic
 func mainOld() {
 	var context = context.Background()
 
-	pf, err := portforward.NewPortForwarder("httpd", metav1.LabelSelector{
+	pf, err := portforward.NewPortForwarderOrig("httpd", metav1.LabelSelector{
 		MatchLabels: map[string]string{
 			"app":   "httpd",
 			"order": "2",
@@ -43,22 +43,36 @@ func mainOld() {
 	}
 
 	log.Printf("Started tunnel on %d\n", pf.ListenPort)
-	// for true {
-	// 	time.Sleep(2 * time.Second)
-	// 	fmt.Printf("ffor loop")
-	// }	
 
-	
 	time.Sleep(600 * time.Second)
 }
 
-func handleItem(name string) {
-	// item, err := getPFItem(name)
-	// if err != nil {
-	// 	log.Fatal("unable to find name in config file")
-	// 	return 
+func handleService(name string) {
+	var context = context.Background()
+
+	service, err := getPFItem(name)
+	if err != nil {
+		log.Fatal("unable to find name in config file")
+		return
+	}
+
+	pf, err := portforward.NewPortForwarder(service.Namespace, service.Pod, int(service.Ports.Dst), int(service.Ports.Src))
+	if err != nil {
+		log.Fatal("Error setting up port forwarder: ", err)
+	}
+
+	err = pf.Start(context)
+	if err != nil {
+		log.Fatal("Error starting port forward: ", err)
+	}
+
+	log.Printf("Started tunnel on %d\n", pf.ListenPort)
+	// for true {
+	// 	time.Sleep(2 * time.Second)
+	// 	fmt.Printf("ffor loop")
 	// }
 
+	time.Sleep(600 * time.Second)
 
 }
 
@@ -70,7 +84,7 @@ func main() {
 	fmt.Println("file:", args.getFile())
 
 	if args.isName() {
-		handleItem(args.name)
+		handleService(args.name)
 
 		return
 	}

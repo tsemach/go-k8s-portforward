@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"strings"
 
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
@@ -29,8 +30,11 @@ type PortForward struct {
 	// The initialized Kubernetes client.
 	Clientset kubernetes.Interface
 
-	// The pod name to use, required if Labels is empty.
+	// the pod name to use, required if Labels is empty.
 	Name string
+
+	// pod prefix, search first pod matching that name
+	Pod string
 
 	// The labels to use to find the pod.
 	Labels metav1.LabelSelector
@@ -51,11 +55,19 @@ type PortForward struct {
 // Initialize a port forwarder, loads the Kubernetes configuration file and creates the client.
 // You do not need to use this function if you have a client to use already - the PortForward
 // struct can be created directly.
-func NewPortForwarder(namespace string, labels metav1.LabelSelector, port int) (*PortForward, error) {
+func NewPortForwarder(namespace string, pod string, dstPort int, listenPort int) (*PortForward, error) {
+	var matchLabels = metav1.LabelSelector{
+		MatchLabels: map[string]string{
+			"app": pod,
+		},
+	}
+
 	pf := &PortForward{
 		Namespace:       namespace,
-		Labels:          labels,
-		DestinationPort: port,
+		Labels:          matchLabels,
+		Pod:             pod,
+		DestinationPort: dstPort,
+		ListenPort:      listenPort,
 	}
 
 	var err error
@@ -176,7 +188,9 @@ func (p *PortForward) getFreePort() (int, error) {
 
 // Create an httpstream.Dialer for use with portforward.New
 func (p *PortForward) dialer(ctx context.Context) (httpstream.Dialer, error) {
-	pod, err := p.getPodName(ctx)
+	// pod, err := p.getPodName(ctx)
+	pod, err := p.findPodByPrefix(ctx)
+
 	if err != nil {
 		return nil, errors.Wrap(err, "Could not get pod name")
 	}
@@ -196,14 +210,58 @@ func (p *PortForward) dialer(ctx context.Context) (httpstream.Dialer, error) {
 	return dialer, nil
 }
 
-// Gets the pod name to port forward to, if Name is set, Name is returned. Otherwise,
-// it will call findPodByLabels().
 func (p *PortForward) getPodName(ctx context.Context) (string, error) {
 	var err error
 	if p.Name == "" {
 		p.Name, err = p.findPodByLabels(ctx)
 	}
 	return p.Name, err
+}
+
+// Gets the pod name to port forward to, if Name is set, Name is returned. Otherwise,
+// it will call findPodByLabels().
+func (p *PortForward) getPodNameOrig(ctx context.Context) (string, error) {
+	var err error
+	if p.Name == "" {
+		p.Name, err = p.findPodByLabels(ctx)
+	}
+	return p.Name, err
+}
+
+func (p *PortForward) findPodByPrefix(ctx context.Context) (string, error) {
+	if len(p.Labels.MatchLabels) == 0 && len(p.Labels.MatchExpressions) == 0 {
+		return "", errors.New("No pod labels specified")
+	}
+
+	pods, err := p.Clientset.CoreV1().Pods(p.Namespace).List(ctx, metav1.ListOptions{
+		FieldSelector: fields.OneTermEqualSelector("status.phase", string(v1.PodRunning)).String(),
+	})
+
+	if err != nil {
+		return "", errors.Wrap(err, "Failed listing pods in kubernetes, namespace:"+p.Namespace)
+	}
+
+	for i := 0; i < len(pods.Items); i++ {
+		fmt.Printf("name: %s pod %s", pods.Items[i].ObjectMeta.Name, p.Pod)
+		
+		if strings.HasPrefix(pods.Items[i].ObjectMeta.Name, p.Pod) {
+			return pods.Items[i].ObjectMeta.Name, nil
+		}
+	}
+
+	return "", errors.New("unable to find pod by it name: " + p.Name + "from namespace: " + p.Namespace)
+
+	// formatted := metav1.FormatLabelSelector(&p.Labels)
+
+	// if len(pods.Items) == 0 {
+	// 	return "", errors.New(fmt.Sprintf("Could not find running pod for selector: labels \"%s\"", formatted))
+	// }
+
+	// if len(pods.Items) != 1 {
+	// 	return "", errors.New(fmt.Sprintf("Ambiguous pod: found more than one pod for selector: labels \"%s\"", formatted))
+	// }
+
+	// return pods.Items[0].ObjectMeta.Name, nil
 }
 
 // Find the name of a pod by label, returns an error if the label returns
