@@ -49,8 +49,10 @@ if `-n <some-service-to-forward-to` the tool will port foward just to that endpo
 otherwise it will read the all the entries in the file and create the appropriate port forwards
 
 Command line argumants
-* pf -n <prefix-pod-name> -f <config-file>
 * pf -h
+* pf -n 'prefix-pod-name' -f 'config-file'
+* pf -f 'config-file'
+* pf
 
 # Kubeconfig
 
