@@ -3,8 +3,11 @@ package portforward
 import (
 	"context"
 	"fmt"
-	"github.com/pkg/errors"
 	"io/ioutil"
+	"net"
+	"net/http"
+
+	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -15,8 +18,6 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/portforward"
 	"k8s.io/client-go/transport/spdy"
-	"net"
-	"net/http"
 )
 
 // Used for creating a port forward into a Kubernetes pod
@@ -55,6 +56,7 @@ func NewPortForwarder(namespace string, labels metav1.LabelSelector, port int) (
 		clientcmd.NewDefaultClientConfigLoadingRules(),
 		&clientcmd.ConfigOverrides{},
 	).ClientConfig()
+
 	if err != nil {
 		return pf, errors.Wrap(err, "Could not load kubernetes configuration file")
 	}
@@ -103,8 +105,6 @@ func (p *PortForward) Start(ctx context.Context) error {
 	case <-readyChan:
 		return nil
 	}
-
-	return nil
 }
 
 // Stop a port forward.
@@ -182,6 +182,11 @@ func (p *PortForward) findPodByLabels(ctx context.Context) (string, error) {
 		return "", errors.New("No pod labels specified")
 	}
 
+	podsList, err := p.Clientset.CoreV1().Pods(p.Namespace).List(ctx, metav1.ListOptions{
+		FieldSelector: fields.OneTermEqualSelector("status.phase", string(v1.PodRunning)).String(),
+	})
+
+	fmt.Printf("pod: %s", &podsList.Items[0])
 	pods, err := p.Clientset.CoreV1().Pods(p.Namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: metav1.FormatLabelSelector(&p.Labels),
 		FieldSelector: fields.OneTermEqualSelector("status.phase", string(v1.PodRunning)).String(),
@@ -197,9 +202,9 @@ func (p *PortForward) findPodByLabels(ctx context.Context) (string, error) {
 		return "", errors.New(fmt.Sprintf("Could not find running pod for selector: labels \"%s\"", formatted))
 	}
 
-	if len(pods.Items) != 1 {
-		return "", errors.New(fmt.Sprintf("Ambiguous pod: found more than one pod for selector: labels \"%s\"", formatted))
-	}
+	// if len(pods.Items) != 1 {
+	// 	return "", errors.New(fmt.Sprintf("Ambiguous pod: found more than one pod for selector: labels \"%s\"", formatted))
+	// }
 
 	return pods.Items[0].ObjectMeta.Name, nil
 }

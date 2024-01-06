@@ -10,12 +10,19 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+/**
+pf => port forward all found in default config file
+pf -f file.yaml => port forward all found in specfic config file
+pf -n <service-name> => port forward specific name found in default config file
+pf -f file.yaml -n <service-name> => port forward specific name found in specfic config file
+*/
+
 func main() {
 	var context = context.Background()
 
 	pf, err := portforward.NewPortForwarder("httpd", metav1.LabelSelector{
 		MatchLabels: map[string]string{
-			"app": "httpd",
+			"app":   "httpd",
 			"order": "2",
 		},
 	}, 80)
