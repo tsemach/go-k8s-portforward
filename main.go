@@ -24,7 +24,7 @@ pf -n <service-name> => port forward specific name found in default config file
 pf -f file.yaml -n <service-name> => port forward specific name found in specfic config file
 */
 
-func main() {
+func mainOld() {
 	var context = context.Background()
 
 	pf, err := portforward.NewPortForwarder("httpd", metav1.LabelSelector{
@@ -43,16 +43,35 @@ func main() {
 	}
 
 	log.Printf("Started tunnel on %d\n", pf.ListenPort)
+	// for true {
+	// 	time.Sleep(2 * time.Second)
+	// 	fmt.Printf("ffor loop")
+	// }	
+
+	
 	time.Sleep(600 * time.Second)
 }
 
-func maincli() {
+func handleItem(name string) {
+	// item, err := getPFItem(name)
+	// if err != nil {
+	// 	log.Fatal("unable to find name in config file")
+	// 	return 
+	// }
+
+
+}
+
+func main() {
 	var args = parse()
+	loadConfig(args.getFile())
 
 	fmt.Println("name:", args.name)
 	fmt.Println("file:", args.getFile())
 
 	if args.isName() {
+		handleItem(args.name)
 
+		return
 	}
 }

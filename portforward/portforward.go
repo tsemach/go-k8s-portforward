@@ -3,7 +3,7 @@ package portforward
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net"
 	"net/http"
 
@@ -25,18 +25,25 @@ import (
 type PortForward struct {
 	// The parsed Kubernetes configuration file.
 	Config *rest.Config
+
 	// The initialized Kubernetes client.
 	Clientset kubernetes.Interface
+
 	// The pod name to use, required if Labels is empty.
 	Name string
+
 	// The labels to use to find the pod.
 	Labels metav1.LabelSelector
+
 	// The port on the pod to forward traffic to.
 	DestinationPort int
+
 	// The port that the port forward should listen to, random if not set.
 	ListenPort int
+
 	// The namespace to look for the pod in.
 	Namespace string
+
 	stopChan  chan struct{}
 	readyChan chan struct{}
 }
@@ -45,6 +52,31 @@ type PortForward struct {
 // You do not need to use this function if you have a client to use already - the PortForward
 // struct can be created directly.
 func NewPortForwarder(namespace string, labels metav1.LabelSelector, port int) (*PortForward, error) {
+	pf := &PortForward{
+		Namespace:       namespace,
+		Labels:          labels,
+		DestinationPort: port,
+	}
+
+	var err error
+	pf.Config, err = clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+		clientcmd.NewDefaultClientConfigLoadingRules(),
+		&clientcmd.ConfigOverrides{},
+	).ClientConfig()
+
+	if err != nil {
+		return pf, errors.Wrap(err, "Could not load kubernetes configuration file")
+	}
+
+	pf.Clientset, err = kubernetes.NewForConfig(pf.Config)
+	if err != nil {
+		return pf, errors.Wrap(err, "Could not create kubernetes client")
+	}
+
+	return pf, nil
+}
+
+func NewPortForwarderOrig(namespace string, labels metav1.LabelSelector, port int) (*PortForward, error) {
 	pf := &PortForward{
 		Namespace:       namespace,
 		Labels:          labels,
@@ -89,7 +121,7 @@ func (p *PortForward) Start(ctx context.Context) error {
 		fmt.Sprintf("%d:%d", listenPort, p.DestinationPort),
 	}
 
-	discard := ioutil.Discard
+	discard := io.Discard
 	pf, err := portforward.New(dialer, ports, p.stopChan, readyChan, discard, discard)
 	if err != nil {
 		return errors.Wrap(err, "Could not port forward into pod")
