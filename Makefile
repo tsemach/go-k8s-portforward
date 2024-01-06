@@ -9,4 +9,4 @@ format:
 
 .PHONY: build
 build:
-	go build -o portforward ./cmd
+	go build -o bin/pf .

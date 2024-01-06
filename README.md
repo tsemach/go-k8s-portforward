@@ -1,56 +1,58 @@
-[from:](https://github.com/olliebarrick/go-k8s-portforward)
+# Interoduction
+This tool is inspair and based on [olliebarrick:](https://github.com/olliebarrick/go-k8s-portforward) project
 
-A Go library for creating port forwards into pods running in a Kubernetes cluster.
+When working on a large microservice development it is often need to port-forward so you will be able to connect to a database and other services you depend on.
 
-![build status](https://ci.codesink.net/api/badges/justinbarrick/go-k8s-portforward/status.svg)
+However it is tedious define all those manually so this tool come to rescue.
+It use a configuration including a defintions of all the ports forward you need to create in order to test you service locally 
 
-This code is heavily inspired by the implementations in kubectl, fission, and helm:
+# Gettting Start
+To use the tool you will a config file which contain a defintion of all the services 
 
-* https://github.com/kubernetes/helm/blob/master/pkg/kube/tunnel.go
-* https://github.com/kubernetes/kubernetes/blob/master/pkg/kubectl/cmd/portforward.go
-* https://github.com/fission/fission/blob/master/fission/portforward/portforward.go
+For example
+````yaml
+- name: httpd
+  pod: httpd-deployment
+  namespace: httpd
+  ports:
+    src: 8080
+    dst: 80
+- name: forward
+  pod: httpd-forward
+  namespace: tunnels
+  ports:
+    src: 8081
+    dst: 80
+````
+This define two services you want to port forward to.
+> * `pod`: the tool will look at the first service match the prefix define in the pod attrinute
+> * `ports.src` is you local port
+> * `ports.dst` is the remote port you want to connect
 
-See [godoc.org](https://godoc.org/github.com/justinbarrick/go-k8s-portforward) for full documentation.
+# Configuration Search
+The tool looks for config file in four steps:
 
-# Example
+1. using `-f` in the command line
+2. using `$PORT_FORWARD_CONFIGFILE` environment variable
+3. using `pf.yaml` | `pf.yml` in the local directory
+4. using `pf.yaml` | `pf.yml` in ~/.config/port-forward
 
-A minimal example which will forward to the 
+# Build
+Run make build to create the binary file
+````bash
+make build
+````
+Binary file create under `./bin` directory
 
-```
-package main
+# Usage
+if `-n <some-service-to-forward-to` the tool will port foward just to that endpoint.
+otherwise it will read the all the entries in the file and create the appropriate port forwards
 
-import (
-	"log"
-	"time"
-	"github.com/justinbarrick/go-k8s-portforward"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-)
-
-func main() {
-	pf, err := portforward.NewPortForwarder("default", metav1.LabelSelector{
-		MatchLabels: map[string]string{
-			"app": "nginx",
-		},
-	}, 80)
-	if err != nil {
-		log.Fatal("Error setting up port forwarder: ", err)
-	}
-
-	err = pf.Start()
-	if err != nil {
-		log.Fatal("Error starting port forward: ", err)
-	}
-
-	log.Printf("Started tunnel on %d\n", pf.ListenPort)
-	time.Sleep(60 * time.Second)
-}
-```
-
-Also see `cmd/main.go`.
+Command line argumants
+* pf -n <prefix-pod-name> -f <config-file>
+* pf -h
 
 # Kubeconfig
 
-By default, it will load a Kubernetes configuration file from ~/.kube/config or $KUBECONFIG.
+By default, it will load a Kubernetes configuration file from `~/.kube/config` or `$KUBECONFIG`.
 
-It is possible to provide your own Kubernetes client by instantiating the PortForward struct
-directly instead of calling the `NewPortForwarder` method.
