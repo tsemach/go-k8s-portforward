@@ -140,7 +140,9 @@ func (p *PortForward) Start(ctx context.Context) error {
 	}
 
 	go func() {
-		errChan <- pf.ForwardPorts()
+		for true {
+			errChan <- pf.ForwardPorts()
+		}
 	}()
 
 	select {
